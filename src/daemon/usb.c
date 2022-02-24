@@ -216,10 +216,8 @@ const char* product_str(ushort product){
     // Katar PRO XT and Katar PRO works the same, so we just do that
     if(product == P_KATAR_PRO_XT || product == P_KATAR_PRO)
         return "katarproxt";
-    if(product == P_GLAIVE)
+    if(product == P_GLAIVE || P_GLAIVE_PRO)
         return "glaive";
-    if(product == P_GLAIVE_PRO)
-        return "glaivepro";
     if(product == P_KATAR)
         return "katar";
     if(product == P_IRONCLAW)
