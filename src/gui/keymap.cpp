@@ -237,6 +237,11 @@ static void patchABNT2(QHash<QString, Key>& map){
 #define K63_WIDTH       K65_WIDTH
 #define K63_HEIGHT      K65_HEIGHT
 
+// K60 has only six rows
+#define K60_WIDTH       K70_WIDTH
+#define K60_HEIGHT      62
+
+
 static const Key K68TopRow[] = {
     {0, "Volume Down", "voldn", 285 - K70_X_START, 0, 13, 8, true, true}, {0, "Volume Up", "volup", 297 - K70_X_START, 0, 13, 8, true, true},
 };
@@ -346,19 +351,19 @@ static const Key KatarPROXTKeys[] = {
 
 // Scimitar
 static const Key ScimKeys[] = {
-    {0, "Left Mouse", "mouse1", 8, 0, 14, 32, false, true}, {0, "Right Mouse", "mouse2", 30, 0, 12, 32, false, true}, {0, "Middle Mouse", "mouse3", 22, 9, 8, 6, false, true}, {0, "Front light", "front", 30, 0, 12, 8, true, false },
-    {0, "Wheel Up", "wheelup", 22, 3, 8, 6, false, true}, {0, "Wheel Down", "wheeldn", 22, 14, 8, 6, false, true}, {0, "Wheel Light", "wheel", 22, 3, 8, 17, true, false},
-    {0, "DPI Up", "dpiup", 22, 19, 8, 9, false, true}, {0, "DPI Light", "dpi", 1, 12, 8, 4, true, false}, {0, "DPI Down", "dpidn", 22, 28, 8, 9, false, true},
-    {0, "Thumb light", "thumb", 0, 21, 10, 24, true, false},
-    {0, "1", "thumb1", -13, 18, 7, 7, false, true}, {0, "2", "thumb2", -6, 18, 7, 7, false, true}, {0, "3", "thumb3", 1, 18, 7, 7, false, true},
-    {0, "4", "thumb4", -13, 25, 7, 7, false, true}, {0, "5", "thumb5", -6, 25, 7, 7, false, true}, {0, "6", "thumb6", 1, 25, 7, 7, false, true},
-    {0, "7", "thumb7", -13, 32, 7, 7, false, true}, {0, "8", "thumb8", -6, 32, 7, 7, false, true}, {0, "9", "thumb9", 1, 32, 7, 7, false, true},
-    {0, "10", "thumb10", -13, 39, 7, 7, false, true}, {0, "11", "thumb11", -6, 39, 7, 7, false, true}, {0, "12", "thumb12", 1, 39, 7, 7, false, true},
-    {0, "Logo", "back", 14, 50, 24, 16, true, false}
+    {0, "Left Mouse", "mouse1", 15, 0, 14, 32, false, true}, {0, "Right Mouse", "mouse2", 37, 0, 12, 32, false, true}, {0, "Middle Mouse", "mouse3", 29, 9, 8, 6, false, true}, {0, "Front light", "front", 37, 0, 12, 8, true, false },
+    {0, "Wheel Up", "wheelup", 29, 3, 8, 6, false, true}, {0, "Wheel Down", "wheeldn", 29, 14, 8, 6, false, true}, {0, "Wheel Light", "wheel", 29, 3, 8, 17, true, false},
+    {0, "DPI Up", "dpiup", 29, 19, 8, 9, false, true}, {0, "DPI Light", "dpi", 8, 12, 8, 4, true, false}, {0, "DPI Down", "dpidn", 29, 28, 8, 9, false, true},
+    {0, "Thumb light", "thumb", 7, 21, 10, 24, true, false},
+    {0, "1", "thumb1", -6, 18, 7, 7, false, true}, {0, "2", "thumb2", 1, 18, 7, 7, false, true}, {0, "3", "thumb3", 8, 18, 7, 7, false, true},
+    {0, "4", "thumb4", -6, 25, 7, 7, false, true}, {0, "5", "thumb5", 1, 25, 7, 7, false, true}, {0, "6", "thumb6", 8, 25, 7, 7, false, true},
+    {0, "7", "thumb7", -6, 32, 7, 7, false, true}, {0, "8", "thumb8", 1, 32, 7, 7, false, true}, {0, "9", "thumb9", 8, 32, 7, 7, false, true},
+    {0, "10", "thumb10", -6, 39, 7, 7, false, true}, {0, "11", "thumb11", 1, 39, 7, 7, false, true}, {0, "12", "thumb12", 8, 39, 7, 7, false, true},
+    {0, "Logo", "back", 21, 50, 24, 16, true, false}
 };
 #define KEYCOUNT_SCIM   (sizeof(ScimKeys) / sizeof(Key))
 
-#define SCIM_WIDTH      M65_WIDTH
+#define SCIM_WIDTH      66
 #define SCIM_HEIGHT     M65_HEIGHT
 
 // M95
@@ -793,6 +798,87 @@ static QHash<QString, Key> getMap(KeyMap::Model model, KeyMap::Layout layout){
         }
         for(const Key* key = K63TopRow; key < K63TopRow + K63_TOP_COUNT; key++)
             map[key->name] = *key;
+
+        break;
+    }
+    case KeyMap::K60:{
+        map = getMap(KeyMap::K70, layout);
+        map.remove("light");
+        map.remove("lock");
+        map.remove("mute");
+        map.remove("volup");
+        map.remove("voldn");
+        map.remove("stop");
+        map.remove("prev");
+        map.remove("play");
+        map.remove("next");
+
+        // Replace rwin with Fn
+        map["fn"] = KStrafeKeys[3];
+        map["fn"].x = map["rwin"].x;
+        map.remove("rwin");
+
+        QMutableHashIterator<QString, Key> i(map);
+        while(i.hasNext()){
+            i.next();
+            i.value().y -= 14;
+        }
+
+        break;
+    }
+    case KeyMap::K57_WL:{
+        // Take the K95 map
+        map = getMap(KeyMap::K95, layout);
+
+        // Replace rwin with Fn
+        map["fn"] = KStrafeKeys[3];
+        map["fn"].x = map["rwin"].x;
+        map.remove("rwin");
+
+        // Replace volume wheel
+        map["voldn"] = {0, "Volume Down", "voldn", map["mute"].x + 12, 0, map["mute"].width, map["mute"].height, true, true};
+        map["volup"] = {0, "Volume Up", "volup", map["mute"].x + 24, 0, map["mute"].width, map["mute"].height, true, true};
+
+        // Fix up the G keys
+        map.remove("g7");
+        map.remove("g8");
+        map.remove("g9");
+        map.remove("g10");
+        map.remove("g11");
+        map.remove("g12");
+        map.remove("g13");
+        map.remove("g14");
+        map.remove("g15");
+        map.remove("g16");
+        map.remove("g17");
+        map.remove("g18");
+        // Place the remaining G keys vertically
+        map["g1"].x = 22;
+        map["g2"].x = 22;
+        map["g3"].x = 22;
+        map["g4"].x = 22;
+        map["g5"].x = 22;
+        map["g6"].x = 22;
+        map["g2"].y = 26; //14+(12*1)
+        map["g3"].y = 38; //14+(12*2)
+        map["g4"].y = 50; //14+(12*3)
+        map["g5"].y = 62; //14+(12*4)
+        map["g6"].y = 74; //14+(12*5)
+
+        // Remove M keys
+        map.remove("m1");
+        map.remove("m2");
+        map.remove("m3");
+
+        // Move MR to the left of brightness
+        map["mr"].x = map["light"].x - 12;
+
+        // Shift all keys down (to make room for the lightbar), and to the left
+        QMutableHashIterator<QString, Key> i(map);
+        while(i.hasNext()){
+            i.next();
+            i.value().x -= K95P_X_START;
+        }
 
         break;
     }
@@ -1264,6 +1350,10 @@ KeyMap::Model KeyMap::getModel(const QString& name){
     QString lower = name.toLower();
     if(lower == "k55")
         return K55;
+    if(lower == "k57_wireless")
+        return K57_WL;
+    if(lower == "k60")
+        return K60;
     if(lower == "k63")
         return K63;
     if(lower == "k65")
@@ -1327,6 +1417,10 @@ QString KeyMap::getModel(KeyMap::Model model){
     switch(model){
     case K55:
         return "k55";
+    case K57_WL:
+        return "k57_wireless";
+    case K60:
+        return "k60";
     case K63:
         return "k63";
     case K65:
@@ -1397,6 +1491,8 @@ KeyMap KeyMap::fromName(const QString &name){
 
 int KeyMap::modelWidth(Model model){
     switch(model){
+    case K60:
+        return K60_WIDTH;
     case K63:
         return K63_WIDTH;
     case K65:
@@ -1412,15 +1508,17 @@ int KeyMap::modelWidth(Model model){
          return K95_WIDTH;
     case K95P:
     case K55:
+    case K57_WL:
         return K95P_WIDTH;
     case STRAFE:
     case STRAFE_MK2:
         return KSTRAFE_WIDTH;
+    case SCIMITAR:
+        return SCIM_WIDTH;
     case M55:
     case M65:
     case M65E:
     case SABRE:
-    case SCIMITAR:
     case HARPOON:
     case GLAIVE:
     case KATAR:
@@ -1432,7 +1530,6 @@ int KeyMap::modelWidth(Model model){
     case IRONCLAW:
     case NIGHTSWORD:
     case GLAIVEPRO:
-        return M65_WIDTH;
     case IRONCLAW_W:
         return M65_WIDTH;
     default:
@@ -1443,6 +1540,7 @@ int KeyMap::modelWidth(Model model){
 int KeyMap::modelHeight(Model model){
     switch(model){
     case K55:
+    case K57_WL:
     case K63:
     case K65:
     case K66:
@@ -1456,6 +1554,8 @@ int KeyMap::modelHeight(Model model){
         return K95_HEIGHT;
     case K95P:
         return K95P_HEIGHT;
+    case K60:
+        return K60_HEIGHT;
     case M55:
     case M65:
     case M65E:

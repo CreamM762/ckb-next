@@ -18,6 +18,7 @@ typedef struct {
 // The do-while business is a hack to make statements like "if(a) SET_KEYBIT(...); else CLEAR_KEYBIT(...);" work
 #define SET_KEYBIT(array, index) do { (array)[(index) / 8] |= 1 << ((index) % 8); } while(0)
 #define CLEAR_KEYBIT(array, index) do { (array)[(index) / 8] &= ~(1 << ((index) % 8)); } while(0)
+#define ISSET_KEYBIT(array, index) ((array)[(index) / 8] & (1 << ((index) % 8)))
 
 // Indicator LEDs
 #define I_NUM       1
@@ -219,13 +220,14 @@ typedef enum protocol_
 
 // Structure for tracking keyboard/mouse devices
 #define KB_NAME_LEN         64
-#define SERIAL_LEN          34
+#define SERIAL_LEN          35
 #define MSG_SIZE            64
 #define BRAGI_JUMBO_SIZE    1024
 #define MAX_MSG_SIZE        BRAGI_JUMBO_SIZE
 #define IFACE_MAX           4
 #define USB_EP_MAX          16
 #define MAX_CHILDREN        8
+#define PAIR_ID_SIZE        8
 
 struct usbdevice_;
 typedef struct usbdevice_ {
@@ -300,9 +302,9 @@ typedef struct usbdevice_ {
     // Whether the keyboard is being actively controlled by the driver
     char active;
     // Device name
-    char name[KB_NAME_LEN+1]; // increase by 1 for the trailing \0 for names that are exactly KB_NAME_LEN, e.g. "Corsair STRAFE RGB Gaming Keyboard"
+    char name[KB_NAME_LEN];
     // Device serial number
-    char serial[SERIAL_LEN+1];
+    char serial[SERIAL_LEN];
     // USB vendor and product IDs
     ushort vendor, product;
     // Firmware version
@@ -342,7 +344,7 @@ typedef struct usbdevice_ {
     // Parent device (for wireless dongles supporting multiple subdevices)
     struct usbdevice_* parent;
     // Children (if this is a parent)
-    struct usbdevice_* children[8];
+    struct usbdevice_* children[MAX_CHILDREN];
     // Bragi child device id
     unsigned char bragi_child_id;
     // Battery information
@@ -361,6 +363,7 @@ typedef struct usbdevice_ {
     } status;
     uchar bragi_out_ep;
     uchar bragi_in_ep;
+    uchar wl_pairing_id[PAIR_ID_SIZE];
 } usbdevice;
 
 #endif  // STRUCTURES_H

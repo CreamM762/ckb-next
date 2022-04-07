@@ -9,6 +9,8 @@
 #define BRAGI_CLOSE_HANDLE  0x05
 #define BRAGI_WRITE_DATA    0x06
 #define BRAGI_CONTINUE_WRITE 0x07
+#define BRAGI_READ_DATA     0x08
+#define BRAGI_PROBE_HANDLE  0x09
 #define BRAGI_OPEN_HANDLE   0x0d
 
 // What to get/set
@@ -52,10 +54,14 @@
 
 // ckb-specific macros
 #define BRAGI_LIGHTING_HANDLE 0x00
+#define BRAGI_GENERIC_HANDLE  0x01 // This is used for quick read/writes. Do NOT leave it open.
 
 // HID input (2 bytes)
 #define BRAGI_INPUT_0       0x00
 #define BRAGI_INPUT_NOTIFY  0x01
 #define BRAGI_INPUT_HID     0x02
+
+// Notification IDs
+#define BRAGI_NOTIFICATION_CONNECTIONSTATUS 0x36
 
 #endif // BRAGI_PROTO_H
