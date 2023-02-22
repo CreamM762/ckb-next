@@ -31,6 +31,8 @@ cmake_minimum_required(VERSION 3.5.1 FATAL_ERROR)
 
 project(ckb-next LANGUAGES C CXX)
 include(VERSION.cmake)
+# Because cmakedefine does not like dashes...
+set(ckb_next_VERSION_IS_RELEASE ${ckb-next_VERSION_IS_RELEASE})
 
 # Let CMake find custom modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/modules")
@@ -118,6 +120,7 @@ option(DEBUG_USB_INPUT "Show the contents of USB packets being received from dev
 option(DEBUG_MUTEX     "Show debugging information regarding thread synchronisation." OFF)
 option(NO_FAIR_MUTEX_QUEUEING "Disable fair mutex queueing. Debugging only." OFF)
 option(DEBUG_INPUT_SYNC "Print a debug message every time an event bundle is delivered to the OS." OFF)
+option(FPS_COUNTER     "Enable FPS counters." OFF)
 
 # Make sure NO_FAIR_MUTEX_QUEUEING is set if TSAN is enabled
 # Otherwise you end up with threading issues that are not detected

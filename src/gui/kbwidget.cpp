@@ -16,6 +16,7 @@
 #include "mainwindow.h"
 #include <QItemSelectionModel>
 #include "modelisttablemodel.h"
+#include "ckbmainbackgroundcolour.h"
 
 KbWidget::KbWidget(QWidget *parent, Kb *_device, XWindowDetector* windowDetector) :
     QWidget(parent),
@@ -23,7 +24,9 @@ KbWidget::KbWidget(QWidget *parent, Kb *_device, XWindowDetector* windowDetector
     ui(new Ui::KbWidget), currentMode(nullptr),
     prevmode(nullptr)
 {
+    CkbMainBackgroundColour::init(parent);
     ui->setupUi(this);
+    Q_ASSERT(ui->pollRateBox->count() == Kb::POLLRATE_COUNT);
     ui->modesList->setDevice(device);
     connect(device, &Kb::profileRenamed, this, &KbWidget::updateProfileList);
     connect(device, &Kb::profileAdded, this, &KbWidget::updateProfileList);
@@ -79,15 +82,27 @@ KbWidget::KbWidget(QWidget *parent, Kb *_device, XWindowDetector* windowDetector
     }
 
     // Hide poll rate and FW update as appropriate
-    if(!device->features.contains("pollrate")){
+    if(device->pollrate == Kb::POLLRATE_UNKNOWN){
         ui->pollRateBox->hide();
         ui->pollLabel2->hide();
+        ui->horizontalLayout_2->removeItem(ui->horizontalSpacer_4);
+        delete ui->horizontalSpacer_4;
+        ui->horizontalSpacer_4 = nullptr;
     }
     if(!device->features.contains("fwupdate")){
         ui->fwUpdButton->hide();
         ui->fwUpdLabel->hide();
         ui->fwUpdLayout->removeItem(ui->fwUpdLayout->itemAt(1));
     }
+    // Remove unsupported pollrates
+    // Block signals so that the pollrate doesn't change
+    bool block = ui->pollRateBox->blockSignals(true);
+    if(device->maxpollrate != Kb::POLLRATE_UNKNOWN){
+        for(int i = 0; i < (Kb::POLLRATE_COUNT - 1) - device->maxpollrate; i++)
+            ui->pollRateBox->removeItem(0);
+    }
+    ui->pollRateBox->blockSignals(block);
+
     // Remove binding tab if the device doesn't support it
     if(!device->features.contains("bind")){
         ui->tabWidget->removeTab(ui->tabWidget->indexOf(ui->bindTab));
@@ -118,8 +133,7 @@ KbWidget::KbWidget(QWidget *parent, Kb *_device, XWindowDetector* windowDetector
         for(int i = 0; i < layoutnames.count(); i++)
             ui->layoutBox->addItem(layoutnames[i].second, layoutnames[i].first);
 
-        KeyMap::Layout settingsLayout;
-        KeyMap::Layout layout = settingsLayout = KeyMap::getLayout(settings.value("hwLayout").toString());
+        KeyMap::Layout layout = KeyMap::getLayout(settings.value("hwLayout").toString());
         if(layout == KeyMap::NO_LAYOUT){
             // If the layout hasn't been set yet, first check if one was set globally from a previous version
             // If not, try to pick an appropriate one that's supported by the hardware
@@ -331,24 +345,25 @@ void KbWidget::on_modesList_customContextMenuRequested(const QPoint& pos){
 #endif
 }
 
-inline int KbWidget::getPollRateBoxIdx(const QString& poll){
-    switch(poll.leftRef(1).toInt()){
-        case 1:
-            return 0;
-        case 2:
-            return 1;
-        case 4:
-            return 2;
-        default: // Includes case 8
-            return 3;
-    }
-}
-
 void KbWidget::devUpdate(){
     // Update device tab
     ui->devLabel->setText(device->usbModel);
     ui->serialLabel->setText(device->usbSerial);
-    ui->fwLabel->setText(device->firmware);
+    ui->fwLabel->setText(device->firmware.app.toString());
+    ui->bldValLabel->setText(device->firmware.bld.toString());
+    // Not all WL devices have a radio BLD so these must be kept separate
+    if(device->firmware.radioapp.isNull()){
+        ui->wlLabel->setVisible(false);
+        ui->wlValLabel->setVisible(false);
+    } else {
+        ui->wlValLabel->setText(device->firmware.radioapp.toString());
+    }
+    if(device->firmware.radiobld.isNull()){
+        ui->wlBldLabel->setVisible(false);
+        ui->wlBldValLabel->setVisible(false);
+    } else {
+        ui->wlBldValLabel->setText(device->firmware.radiobld.toString());
+    }
     // This is needed so that the currentIndexChanged event doesn't fire
     // If it does, we'll end up with an always greyed out box when pollrate != 1
     bool block = ui->pollRateBox->blockSignals(true);
@@ -386,12 +401,12 @@ void KbWidget::updateFwButton(){
     if(!MainWindow::mainWindow->kbfw->hasDownloaded())
         ui->fwUpdButton->setText(tr("Check for updates"));
     else {
-        float newVersion = MainWindow::mainWindow->kbfw->versionForBoard(device->productID);
-        float oldVersion = device->firmware.toFloat();
-        if(newVersion <= 0.f || newVersion <= oldVersion)
+        CkbVersionNumber newVersion = MainWindow::mainWindow->kbfw->versionForBoard(device->productID);
+        const CkbVersionNumber& oldVersion = device->firmware.app;
+        if(newVersion.isNull() || newVersion <= oldVersion)
             ui->fwUpdButton->setText(tr("Up to date"));
         else
-            ui->fwUpdButton->setText(tr("Upgrade to v%1").arg(QString::number(newVersion, 'f', 2)));
+            ui->fwUpdButton->setText(tr("Upgrade to v%1").arg(newVersion.toString()));
     }
 }
 
@@ -411,17 +426,17 @@ void KbWidget::on_fwUpdButton_clicked(){
             ui->fwUpdButton->setText(tr("Checking..."));
             ui->fwUpdButton->setEnabled(false);
         }
-        float newVersion = MainWindow::mainWindow->kbfw->versionForBoard(device->productID, true);
-        float oldVersion = device->firmware.toFloat();
+        const CkbVersionNumber newVersion = MainWindow::mainWindow->kbfw->versionForBoard(device->productID, true);
+        const CkbVersionNumber& oldVersion = device->firmware.app;
         ui->fwUpdButton->setEnabled(true);
         updateFwButton();
-        if(newVersion == -1.f){
-            QMessageBox::information(this, tr("Firmware update"), tr("<center>There is a new firmware available for this device.<br />However, it requires a newer version of ckb-next.<br />Please upgrade ckb-next and try again.</center>"));
-            return;
-        } else if(newVersion == 0.f){
+        if(newVersion.isNull()){
             if(QMessageBox::question(this, tr("Firmware update"), tr("<center>There was a problem getting the status for this device.<br />Would you like to select a file manually?</center>")) != QMessageBox::Yes)
                 return;
             // "Yes" -> fall through to browse file
+        } else if(newVersion.CkbTooOld()){
+            QMessageBox::information(this, tr("Firmware update"), tr("<center>There is a new firmware available for this device (v%1).<br />However, it requires a newer version of ckb-next.<br />Please upgrade ckb-next and try again.</center>").arg(newVersion.toString()));
+            return;
         } else if(newVersion <= oldVersion){
             if(QMessageBox::question(this, tr("Firmware update"), tr("<center>Your firmware is already up to date.<br />Would you like to select a file manually?</center>")) != QMessageBox::Yes)
                 return;
@@ -429,7 +444,7 @@ void KbWidget::on_fwUpdButton_clicked(){
         } else {
             // Automatic upgrade. Fetch file from web.
             // FwUpgradeDialog can't be parented to KbWidget because KbWidget may be deleted before the dialog exits
-            FwUpgradeDialog dialog(parentWidget(), newVersion, "", device);
+            FwUpgradeDialog dialog(parentWidget(), newVersion, QByteArray(), device);
             dialog.exec();
             return;
         }
@@ -444,7 +459,7 @@ void KbWidget::on_fwUpdButton_clicked(){
         return;
     }
     QByteArray blob = file.readAll();
-    FwUpgradeDialog dialog(parentWidget(), 0.f, blob, device);
+    FwUpgradeDialog dialog(parentWidget(), CkbVersionNumber(), blob, device);
     dialog.exec();
 }
 
@@ -495,7 +510,7 @@ void KbWidget::switchToMode(const QString& mode){
 
 void KbWidget::on_pollRateBox_currentIndexChanged(const QString& arg1) {
     ui->pollRateBox->setEnabled(false);
-    device->setPollRate(arg1.left(1));
+    device->setPollRate(arg1.left(arg1.indexOf(QLatin1String(" ms"))));
 }
 
 // Returns true if a match is found

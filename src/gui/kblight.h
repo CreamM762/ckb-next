@@ -9,6 +9,7 @@
 #include "kbanim.h"
 #include "keymap.h"
 #include "colormap.h"
+#include <ckbnextconfig.h>
 
 class KbMode;
 
@@ -48,7 +49,7 @@ public:
     KbAnim*             duplicateAnim(KbAnim* oldAnim);
     const AnimList&     animList()                              { return _animList; }
     void                animList(const AnimList& newAnimList)   { _needsSave = true; _animList = newAnimList; }
-    KbAnim*             findAnim(const QUuid& guid) const       { foreach(KbAnim* anim, _animList) { if(anim->guid() == guid) return anim; } return 0; }
+    KbAnim*             findAnim(const QUuid& guid) const       { foreach(KbAnim* anim, _animList) { if(anim->guid() == guid) return anim; } return nullptr; }
     int                 findAnimIdx(const QUuid& guid) const    { return _animList.indexOf(findAnim(guid)); }
     // Preview animation - temporary animation displayed at the top of the animation list
     void previewAnim(const AnimScript* base, const QStringList& keys, const QMap<QString, QVariant>& preset);
@@ -90,7 +91,7 @@ public:
 signals:
     void didLoad();
     void updated();
-    void frameDisplayed(const ColorMap& animatedColors, const QSet<QString>& indicatorList);
+    void frameDisplayed(const ColorMap& animatedColors, const QSet<QString>& indicatorList, quint64 timestamp);
 
 private:
     AnimList        _animList;
@@ -108,6 +109,9 @@ private:
     void rebuildBaseMap();
     // Print RGB values to cmd node
     void printRGB(QFile& cmd, const ColorMap& animMap);
+#ifdef FPS_COUNTER
+    quint64 previousTimestamp;
+#endif
 };
 
 #endif // KBLIGHT_H

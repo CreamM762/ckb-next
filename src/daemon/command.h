@@ -3,6 +3,13 @@
 
 typedef struct usbdevice_ usbdevice;
 typedef struct usbmode_ usbmode;
+typedef enum pollrate_ pollrate_t;
+
+typedef enum {
+    DELAY_SEND,
+    DELAY_RECV,
+    DELAY_INDICATORS,
+} delay_type_t;
 
 // Command operations
 typedef enum {
@@ -86,7 +93,7 @@ typedef union devcmd {
         // firmware.h
         cmdhandler_io fwupdate;
         // device.h
-        cmdhandler_io pollrate;
+        int (*pollrate)(usbdevice* kb, pollrate_t rate);
 
         // device.h
         cmdhandler_io active;
@@ -148,12 +155,14 @@ typedef union devcmd {
         device_io read;
 
         void (*get_battery_info)(usbdevice* kb);
+        void (*delay)(usbdevice* kb, delay_type_t type);
+        void (*setfps)(usbdevice* kb, int fps);
     };
 } devcmd;
 
 // Parse input from FIFO. Lock dmutex first (see device.h)
 // This function is also responsible for calling all of the cmd_ functions. They should not be invoked elsewhere.
-int readcmd(usbdevice* kb, const char* line);
+int readcmd(usbdevice* kb, char* line);
 
 #endif  // COMMAND_H
 

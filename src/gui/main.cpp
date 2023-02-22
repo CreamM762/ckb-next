@@ -11,6 +11,8 @@
 #include <QTranslator>
 #include "compat/qrand.h"
 #include <QMessageBox>
+#include "keywidgetdebugger.h"
+#include <QSurfaceFormat>
 
 QSharedMemory appShare("ckb-next");
 
@@ -37,6 +39,10 @@ enum CommandLineParseResults {
 };
 
 bool startDelay = false;
+bool silent = false;
+#ifndef QT_NO_DEBUG
+bool kwdebug = false;
+#endif
 
 /**
  * parseCommandLine - Setup options and parse command line arguments.
@@ -72,13 +78,23 @@ CommandLineParseResults parseCommandLine(QCommandLineParser &parser, QString *er
     parser.addOption(switchToModeOption);
 
     QCommandLineOption delayOption(QStringList() << "d" << "delay", QObject::tr("Delays application start for 5 seconds"));
+    QCommandLineOption silentOption(QStringList() << "s" << "silent", QObject::tr("Disables the daemon not running popup"));
+
     // Sigh
 #if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
     delayOption.setFlags(QCommandLineOption::HiddenFromHelp);
+    silentOption.setFlags(QCommandLineOption::HiddenFromHelp);
 #elif QT_VERSION >= QT_VERSION_CHECK(5, 6, 0)
     delayOption.setHidden(true);
+    silentOption.setHidden(true);
 #endif
     parser.addOption(delayOption);
+    parser.addOption(silentOption);
+
+#ifndef QT_NO_DEBUG
+    QCommandLineOption kwdebugOption("kwdebug", QObject::tr("Enables the KeyWidget debug window"));
+    parser.addOption(kwdebugOption);
+#endif
 
     /* parse arguments */
     if (!parser.parse(QCoreApplication::arguments())) {
@@ -102,6 +118,16 @@ CommandLineParseResults parseCommandLine(QCommandLineParser &parser, QString *er
         startDelay = true;
     }
 
+    if(parser.isSet(silentOption)) {
+        silent = true;
+    }
+
+#ifndef QT_NO_DEBUG
+    if(parser.isSet(kwdebugOption)) {
+        kwdebug = true;
+    }
+#endif
+
     if (parser.isSet(backgroundOption)) {
         // open application in background
         return CommandLineBackground;
@@ -122,7 +148,7 @@ CommandLineParseResults parseCommandLine(QCommandLineParser &parser, QString *er
 
     /* no explicit argument was passed */
     return CommandLineOK;
-};
+}
 
 // Scan shared memory for an active PID
 static bool pidActive(const QStringList& lines){
@@ -197,6 +223,10 @@ bool checkIfQtCreator(){
 }
 
 int main(int argc, char *argv[]){
+QSurfaceFormat fmt;
+fmt.setSamples(8);
+QSurfaceFormat::setDefaultFormat(fmt);
+
 QSettings::setDefaultFormat(CkbSettings::Format);
 
 #ifdef Q_OS_LINUX
@@ -343,7 +373,7 @@ QSettings::setDefaultFormat(CkbSettings::Format);
     const char* shm_str = "Open";
     if(qApp->isSessionRestored())
     {
-        background = 1;
+        background = true;
         shm_str = nullptr;
     }
     // Check if the parent was Qt Creator.
@@ -363,9 +393,17 @@ QSettings::setDefaultFormat(CkbSettings::Format);
     if(QtCreator)
         QThread::sleep(1);
 
-    MainWindow w;
+    MainWindow w(silent);
     if(!background)
         w.show();
+
+#ifndef QT_NO_DEBUG
+    if(kwdebug){
+        KeyWidgetDebugger* d = new KeyWidgetDebugger;
+        d->show();
+        QObject::connect(&w, &MainWindow::destroyed, [d](){delete d;});
+    }
+#endif
 
     return a.exec();
 }

@@ -8,7 +8,7 @@
 
 KbBindWidget::KbBindWidget(QWidget *parent) :
     QWidget(parent),
-    ui(new Ui::KbBindWidget), bind(0), profile(0), keyWidget(new KeyWidget(this))
+    ui(new Ui::KbBindWidget), bind(nullptr), profile(nullptr), keyWidget(new KeyWidget(this))
 {
     ui->setupUi(this);
     keyWidget->rgbMode(false);
@@ -90,7 +90,7 @@ void KbBindWidget::updateSelDisplay(){
     if(count == 1){
         // Single key selected: show key name and binding
         QString key = currentSelection[0];
-        const Key& pos = bind->map()[key];
+        const Key& pos = bind->map().key(key);
         if(!pos)
             ui->selectLabel->setText(tr("(Unknown)"));
         else
@@ -106,7 +106,7 @@ void KbBindWidget::on_resetButton_clicked(){
     if(selection.isEmpty())
         // Reset all keys if none selected
         selection = map.keys();
-    uint count = selection.count();
+    int count = selection.count();
     QString type = bind->isMouse() ? tr("button") : tr("key");
     QString text;
     if(count == map.count())

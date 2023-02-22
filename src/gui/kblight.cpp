@@ -4,21 +4,25 @@
 #include "kblight.h"
 #include "kbmode.h"
 #include <typeinfo>
+#include <ckbnextconfig.h>
 
 static int _shareDimming = -1;
 static QSet<KbLight*> activeLights;
 
 KbLight::KbLight(KbMode* parent, const KeyMap& keyMap) :
-    QObject(parent), _previewAnim(0), lastFrameSignal(0), _dimming(0), _lastFrameDimming(0),
+    QObject(parent), _previewAnim(nullptr), lastFrameSignal(0), _dimming(0), _lastFrameDimming(0),
     _timerOrigDimming(-1), _start(false), _needsSave(true), _needsMapRefresh(true), _forceFrame(false),
     // Init timerDimmed as true in case a new device is initialised before the idle timer ticks to restore the brightness
     _timerDimmed(false)
 {
     map(keyMap);
+#ifdef FPS_COUNTER
+    previousTimestamp = 0;
+#endif
 }
 
 KbLight::KbLight(KbMode* parent, const KeyMap& keyMap, const KbLight& other) :
-    QObject(parent), _previewAnim(0), _map(other._map), _qColorMap(other._qColorMap),
+    QObject(parent), _previewAnim(nullptr), _map(other._map), _qColorMap(other._qColorMap),
     lastFrameSignal(0), _dimming(other._dimming), _lastFrameDimming(other._lastFrameDimming), _timerOrigDimming(-1),
     _start(false), _needsSave(true), _needsMapRefresh(true), _forceFrame(false),
     _timerDimmed(false)
@@ -27,14 +31,15 @@ KbLight::KbLight(KbMode* parent, const KeyMap& keyMap, const KbLight& other) :
     // Duplicate animations
     foreach(KbAnim* animation, other._animList)
         _animList.append(new KbAnim(this, keyMap, *animation));
+#ifdef FPS_COUNTER
+    previousTimestamp = 0;
+#endif
 }
 
 void KbLight::map(const KeyMap& map){
     // If any of the keys are missing from the color map, set them to white
-    QHashIterator<QString, Key> i(map);
-    while(i.hasNext()){
-        i.next();
-        const QString& key = i.key();
+    for(const Key& k : map){
+        const char* key = k.name;
         if(!_qColorMap.contains(key))
             _qColorMap[key] = 0xFFFFFFFF;
     }
@@ -150,7 +155,7 @@ void KbLight::previewAnim(const AnimScript* base, const QStringList& keys, const
 
 void KbLight::stopPreview(){
     delete _previewAnim;
-    _previewAnim = 0;
+    _previewAnim = nullptr;
 }
 
 KbAnim* KbLight::duplicateAnim(KbAnim* oldAnim){
@@ -356,11 +361,18 @@ void KbLight::frameUpdate(QFile& cmd, bool monochrome){
         }
     }
 
-    // Emit signals for the animation (only do this every 50ms - it can cause a lot of CPU usage)
+    // Emit signals for the GUI preview (only do this every 50ms - it can cause a lot of CPU usage)
     if(timestamp >= lastFrameSignal + 50){
-        emit frameDisplayed(_animMap, _indicatorList);
+#ifdef FPS_COUNTER
+        emit frameDisplayed(_animMap, _indicatorList, timestamp - previousTimestamp);
+#else
+        emit frameDisplayed(_animMap, _indicatorList, 0);
+#endif
         lastFrameSignal = timestamp;
     }
+#ifdef FPS_COUNTER
+    previousTimestamp = timestamp;
+#endif
 
     // If brightness is at 0%, turn off lighting entirely
     if(_dimming == 3 && lastFrameOrForce){

@@ -43,7 +43,10 @@
 #define V_CORSAIR            0x1b1c
 
 #define P_K55                0x1b3d
-#define IS_K55(kb)           ((kb)->vendor == V_CORSAIR && (kb)->product == P_K55)
+#define P_K55_PRO            0x1ba4
+#define P_K55_PRO_XT         0x1ba1
+#define IS_K55(kb)           ((kb)->vendor == V_CORSAIR && ((kb)->product == P_K55 || (kb)->product == P_K55_PRO || (kb)->product == P_K55_PRO_XT))
+
 
 #define P_K57_D              0x1b62
 #define P_K57_U              0x1b6e
@@ -51,7 +54,8 @@
 #define P_K60_PRO_RGB        0x1ba0
 #define P_K60_PRO_RGB_LP     0x1bad
 #define P_K60_PRO_RGB_SE     0x1b8d
-#define IS_K60PRORGB(kb)     ((kb)->vendor == V_CORSAIR && ((kb)->product == P_K60_PRO_RGB || (kb)->product == P_K60_PRO_RGB_LP || (kb)->product == P_K60_PRO_RGB_SE))
+#define P_K60_PRO_MONO       0x1b83
+#define IS_K60PRORGB(kb)     ((kb)->vendor == V_CORSAIR && ((kb)->product == P_K60_PRO_RGB || (kb)->product == P_K60_PRO_RGB_LP || (kb)->product == P_K60_PRO_RGB_SE || (kb)->product == P_K60_PRO_MONO))
 
 #define P_K63_NRGB           0x1b40
 #define P_K63_NRGB_WL        0x1b45 /* wireless */
@@ -206,7 +210,7 @@ const char* product_str(ushort product);
 /// The difference between non RGB and monochrome is, that monochrome has lights, but just in one color.
 /// nonRGB has no lights.
 /// Change this if new \b monochrome devices are added
-#define IS_MONOCHROME(vendor, product)  ((vendor) == (V_CORSAIR) && ((product) == (P_K63_NRGB) || (product) == (P_K63_NRGB_WL) || (product) == (P_K63_NRGB_WL2) || (product) == (P_K63_NRGB_WL3) || (product) == (P_K63_NRGB_WL4) || (product) == (P_K68_NRGB) || (product) == (P_STRAFE_NRGB) || (product) == (P_STRAFE_NRGB_2)))
+#define IS_MONOCHROME(vendor, product)  ((vendor) == (V_CORSAIR) && ((product) == (P_K63_NRGB) || (product) == (P_K63_NRGB_WL) || (product) == (P_K63_NRGB_WL2) || (product) == (P_K63_NRGB_WL3) || (product) == (P_K63_NRGB_WL4) || (product) == (P_K68_NRGB) || (product) == (P_STRAFE_NRGB) || (product) == (P_STRAFE_NRGB_2) || (product) == (P_K60_PRO_MONO)))
 
 /// For calling with a usbdevice*, vendor and product are extracted and IS_LEGACY() is returned.
 #define IS_LEGACY_DEV(kb)               IS_LEGACY((kb)->vendor, (kb)->product)
@@ -260,38 +264,26 @@ const char* product_str(ushort product);
 #define USES_FILE_HWSAVE(kb)            ((kb)->product == P_K95_PLATINUM || (kb)->product == P_K70_MK2 || (kb)->product == P_K70_MK2SE || (kb)->product == P_STRAFE_MK2 || (kb)->product == P_GLAIVE || (kb)->product == P_SCIMITAR_PRO || (kb)->product == P_SCIMITAR_ELITE || (kb)->product == P_K70_MK2LP || (kb)->product == P_M65_RGB_ELITE || (kb)->product == P_IRONCLAW || (kb)->product == P_HARPOON_PRO || IS_K63_WL(kb) || IS_DARK_CORE_NXP(kb) || (kb)->product == P_IRONCLAW_W_U || (kb)->product == P_IRONCLAW_W_D || (kb)->product == P_NIGHTSWORD)
 
 /// Devices here support setting the pollrate through software
-#define SUPPORTS_ADJRATE(kb)            ((kb)->product == P_K60_PRO_RGB || (kb)->product == P_K60_PRO_RGB_LP || (kb)->product == P_K60_PRO_RGB_SE || (kb)->product == P_K63_NRGB || (kb)->product == P_K66 || (kb)->product == P_K68 || (kb)->product == P_K68_NRGB || (kb)->product == P_K70_MK2 || (kb)->product == P_K70_MK2SE || (kb)->product == P_K70_MK2LP || (kb)->product == P_K95_PLATINUM || (kb)->product == P_STRAFE || (kb)->product == P_STRAFE_NRGB || (kb)->product == P_STRAFE_NRGB_2 || (kb)->product == P_STRAFE_MK2 || (kb)->product == P_M55_RGB_PRO || (kb)->product == P_M65 || (kb)->product == P_M65_PRO || (kb)->product == P_M65_RGB_ELITE || (kb)->product == P_M95 || (kb)->product == P_SABRE_O || (kb)->product == P_SABRE_L || (kb)->product == P_SABRE_N || (kb)->product == P_SABRE_O2 || (kb)->product == P_SCIMITAR || (kb)->product == P_SCIMITAR_ELITE || (kb)->product == P_SCIMITAR_PRO || (kb)->product == P_HARPOON || (kb)->product == P_HARPOON_PRO || (kb)->product == P_GLAIVE || (kb)->product == P_KATAR || (kb)->product == P_KATAR_PRO_XT || (kb)->product == P_KATAR_PRO || (kb)->product == P_NIGHTSWORD || IS_DARK_CORE_NXP(kb) || (kb)->product == P_K95_PLATINUM_XT || (kb)->product == P_GLAIVE_PRO)
+#define SUPPORTS_ADJRATE(kb)            ((kb)->product == P_K60_PRO_RGB || (kb)->product == P_K60_PRO_MONO || (kb)->product == P_K60_PRO_RGB_LP || (kb)->product == P_K60_PRO_RGB_SE || (kb)->product == P_K63_NRGB || (kb)->product == P_K66 || (kb)->product == P_K68 || (kb)->product == P_K68_NRGB || (kb)->product == P_K70_MK2 || (kb)->product == P_K70_MK2SE || (kb)->product == P_K70_MK2LP || (kb)->product == P_K95_PLATINUM || (kb)->product == P_STRAFE || (kb)->product == P_STRAFE_NRGB || (kb)->product == P_STRAFE_NRGB_2 || (kb)->product == P_STRAFE_MK2 || (kb)->product == P_M55_RGB_PRO || (kb)->product == P_M65 || (kb)->product == P_M65_PRO || (kb)->product == P_M65_RGB_ELITE || (kb)->product == P_M95 || (kb)->product == P_SABRE_O || (kb)->product == P_SABRE_L || (kb)->product == P_SABRE_N || (kb)->product == P_SABRE_O2 || (kb)->product == P_SCIMITAR || (kb)->product == P_SCIMITAR_ELITE || (kb)->product == P_SCIMITAR_PRO || (kb)->product == P_HARPOON || (kb)->product == P_HARPOON_PRO || (kb)->product == P_GLAIVE || (kb)->product == P_KATAR || (kb)->product == P_KATAR_PRO_XT || (kb)->product == P_KATAR_PRO || (kb)->product == P_NIGHTSWORD || IS_DARK_CORE_NXP(kb) || (kb)->product == P_K95_PLATINUM_XT || (kb)->product == P_GLAIVE_PRO || (kb)->product == P_K55_PRO || (kb)->product == P_K55_PRO_XT)
 
 // Bragi devices that use macros for media keys. Currently used to apply a terrible workaround.
 #define BRAGI_HAS_MEDIA_MACRO(kb)       (IS_K60PRORGB(kb))
 
 // Devices that have volume wheels (or don't)
-#define DEV_HAS_VOLWHEEL(kb)            (!(IS_K65(kb) || IS_K63(kb) || (kb)->product == P_K57_U || BRAGI_HAS_MEDIA_MACRO(kb)))
+#define DEV_HAS_VOLWHEEL(kb)            (!(IS_K65(kb) || IS_K63(kb) || (kb)->product == P_K57_U || IS_K55(kb) || BRAGI_HAS_MEDIA_MACRO(kb)))
 
 // Devices that use the NXP protocol and have the DPI stage RGB data in the DPI packet
 #define NXP_RGB_IN_DPI_PKT(kb)          ((kb)->vendor == V_CORSAIR && ((kb)->product == P_GLAIVE_PRO || IS_DARK_CORE_NXP(kb)))
 
-/// USB delays for when the keyboards get picky about timing
-/// That was the original comment, but it is used anytime.
+#define DELAY_100MS()       \
+        clock_nanosleep(CLOCK_MONOTONIC, 0, &(struct timespec) {.tv_nsec = 100000000}, NULL)
 
-/// The short delay is used before any send or receive
-#define DELAY_SHORT(kb)      \
-        clock_nanosleep(CLOCK_MONOTONIC, 0, &(struct timespec) {.tv_nsec = ((int) (kb->usbdelay)) * 1000000}, NULL)  // base (default: 5ms)
-
-/// the medium delay is used after sending a command before waiting for the answer.
-#define DELAY_MEDIUM(kb)     \
-        clock_nanosleep(CLOCK_MONOTONIC, 0, &(struct timespec) {.tv_nsec = ((int) (kb->usbdelay)) * 10000000}, NULL)  // x10 (default: 50ms)
-
-/// The longest delay takes place where something went wrong (eg when resetting the device)
-#define DELAY_LONG(kb)       \
-        clock_nanosleep(CLOCK_MONOTONIC, 0, &(struct timespec) {.tv_nsec = 100000000}, NULL)  // long, fixed 100ms
-
-/// This constant is used to initialize \b kb->usbdelay.
-/// It is used in many places (see macros above) but often also overwritten to the fixed value of 10.
-#define USB_DELAY_DEFAULT   5
+// This is used in NXP only. Would be nice if it can be removed.
+#define DELAY_30MS()        \
+        clock_nanosleep(CLOCK_MONOTONIC, 0, &(struct timespec) {.tv_nsec = 30000000}, NULL)
 
 // This should be removed in the future when we implement autodetection
-#define USES_BRAGI(vendor, product)                  ((vendor) == (V_CORSAIR) && ((product) == (P_M55_RGB_PRO) || (product) == (P_IRONCLAW_W_U) || (product) == (P_IRONCLAW_W_D) || (product) == (P_K95_PLATINUM_XT) || (product) == (P_DARK_CORE_RGB_PRO_SE) || (product) == (P_DARK_CORE_RGB_PRO_SE_WL) || (product) == P_HARPOON_WL_U || (product) == P_HARPOON_WL_D || (product) == P_K57_U || (product) == P_K57_D || (product) == P_KATAR_PRO_XT || (product) == P_KATAR_PRO || (product) == P_K60_PRO_RGB || (product) == P_K60_PRO_RGB_LP || (product) == P_K60_PRO_RGB_SE))
+#define USES_BRAGI(vendor, product)                  ((vendor) == (V_CORSAIR) && ((product) == (P_M55_RGB_PRO) || (product) == (P_IRONCLAW_W_U) || (product) == (P_IRONCLAW_W_D) || (product) == (P_K95_PLATINUM_XT) || (product) == (P_DARK_CORE_RGB_PRO_SE) || (product) == (P_DARK_CORE_RGB_PRO_SE_WL) || (product) == P_HARPOON_WL_U || (product) == P_HARPOON_WL_D || (product) == P_K57_U || (product) == P_K57_D || (product) == P_KATAR_PRO_XT || (product) == P_KATAR_PRO || (product) == P_K60_PRO_RGB || (product) == P_K60_PRO_RGB_LP || (product) == P_K60_PRO_RGB_SE || (product) == P_K60_PRO_MONO || (product) == P_K55_PRO || (product) == P_K55_PRO_XT))
 
 // Devices that use bragi jumbo packets (1024 bytes)
 #define USES_BRAGI_JUMBO(vendor, product)           ((vendor) == (V_CORSAIR) && 0)
@@ -369,7 +361,7 @@ int os_resetusb(usbdevice* kb, const char* file, int line);
 /// \param[IN] file for debugging
 /// \param[IN] line for debugging
 /// \param[in] reset_stop global variable is read
-/// \return number of Bytes sent (ideal == count * MSG_SIZE);\n 0 if a block could not be sent and it was not a timeout OR \b reset_stop was required or \b hwload_mode is not set to "always"
+/// \return number of Bytes sent (ideal == count * MSG_SIZE);\n 0 if a block could not be sent and it was not a timeout OR \b reset_stop was required
 int _usbsend(usbdevice* kb, void* messages, size_t msg_len, int count, const char* file, int line);
 
 /// \brief usbsend macro is used to wrap _usbsend() with debugging information (file and lineno)

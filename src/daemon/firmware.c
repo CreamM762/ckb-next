@@ -9,7 +9,27 @@
 #define FW_WRONGDEV -2
 #define FW_USBFAIL  -3
 
+static inline pollrate_t nxp_pollrate(const uchar rate){
+    switch(rate){
+        case 1:
+            return POLLRATE_1MS;
+        case 2:
+            return POLLRATE_2MS;
+        case 4:
+            return POLLRATE_4MS;
+        case 8:
+            return POLLRATE_8MS;
+        default:
+            ckb_err("Invalid NXP pollrate 0x%hhx", rate);
+            // You can set the pollrate to an invalid value and the device will keep the invalid value
+            // Should default to 1ms
+            return POLLRATE_1MS;
+    }
+}
+
 int getfwversion(usbdevice* kb){
+    kb->radioappversion = kb->radiobldversion = kb->bldversion = UINT32_MAX;
+
     // Ask board for firmware info
     uchar data_pkt[MSG_SIZE] = { CMD_GET, FIELD_IDENT, 0 };
     uchar in_pkt[MSG_SIZE];
@@ -24,108 +44,118 @@ int getfwversion(usbdevice* kb){
 
     if(!usbrecv(kb, data_pkt, sizeof(data_pkt), in_pkt))
         return -1;
-    if(in_pkt[0] != CMD_GET || in_pkt[1] != FIELD_IDENT){
+    if(in_pkt[0] != CMD_GET || (in_pkt[1] != FIELD_IDENT && in_pkt[1] != 0)){
         ckb_err("Bad input header");
         return -1;
     }
-    char ident_str[3*MSG_SIZE+1] = "";
-    memset(ident_str, 0, 3 * MSG_SIZE + 1);
-    for (int i = 0; i < MSG_SIZE; i++) {
-        sprintf(ident_str + (3 * i), "%02hhx ", in_pkt[i]);
-    }
-    ckb_info("Received identification packet: %s", ident_str);
-    ushort vendor, product, version, bootloader;
-    // Copy the vendor ID, product ID, version, and poll rate from the firmware data
-    memcpy(&version, in_pkt + 8, 2);
-    memcpy(&bootloader, in_pkt + 10, 2);
-    memcpy(&vendor, in_pkt + 12, 2);
-    memcpy(&product, in_pkt + 14, 2);
-    char poll = in_pkt[16];
-    if(poll <= 0){
-        poll = -1;
-        kb->features &= ~FEAT_POLLRATE;
-    }
-    // Print a warning if the message didn't match the expected data
-    if(vendor != kb->vendor)
-        ckb_warn("Got vendor ID %04x (expected %04x)", vendor, kb->vendor);
-    if(product != kb->product)
-        ckb_warn("Got product ID %04x (expected %04x)", product, kb->product);
-    // Set firmware version and poll rate
-    if(version == 0 || bootloader == 0){
-        // Needs firmware update
-        kb->fwversion = 0;
-        kb->pollrate = -1;
-    } else {
+
+    if(in_pkt[1] == FIELD_IDENT){
+        char ident_str[3*MSG_SIZE+1] = "";
+        memset(ident_str, 0, 3 * MSG_SIZE + 1);
+        for (int i = 0; i < MSG_SIZE; i++) {
+            sprintf(ident_str + (3 * i), "%02hhx ", in_pkt[i]);
+        }
+        ckb_info("Received identification packet: %s", ident_str);
+        ushort vendor, product, version, bootloader;
+        // Copy the vendor ID, product ID, version, and poll rate from the firmware data
+        memcpy(&version, in_pkt + 8, 2);
+        memcpy(&bootloader, in_pkt + 10, 2);
+        memcpy(&vendor, in_pkt + 12, 2);
+        memcpy(&product, in_pkt + 14, 2);
+        kb->pollrate = nxp_pollrate(in_pkt[16]);
+
+        // Print a warning if the message didn't match the expected data
+        if(vendor != kb->vendor)
+            ckb_warn("Got vendor ID %04x (expected %04x)", vendor, kb->vendor);
+        if(product != kb->product)
+            ckb_warn("Got product ID %04x (expected %04x)", product, kb->product);
         if(version != kb->fwversion && kb->fwversion != 0)
             ckb_warn("Got firmware version %04x (expected %04x)", version, kb->fwversion);
-        kb->fwversion = version;
-        kb->pollrate = poll;
-    }
-    // Physical layout detection.
-    if (kb->layout == LAYOUT_UNKNOWN) {
-        kb->layout = in_pkt[23] + 1;
-        if (kb->layout > LAYOUT_DUBEOLSIK) {
-            ckb_warn("Got unknown physical layout byte value %d, please file a bug report mentioning your keyboard's physical layout", in_pkt[23]);
-            kb->layout = LAYOUT_UNKNOWN;
+
+        // Set firmware version
+        // Don't overwrite it if it's 0
+        if(version){
+            kb->fwversion = version;
+
+            // Physical layout detection.
+            if (kb->layout == LAYOUT_UNKNOWN) {
+                kb->layout = in_pkt[23] + 1;
+                if (kb->layout > LAYOUT_DUBEOLSIK) {
+                    ckb_warn("Got unknown physical layout byte value %d, please file a bug report mentioning your keyboard's physical layout", in_pkt[23]);
+                    kb->layout = LAYOUT_UNKNOWN;
+                }
+            }
+        } else {
+            kb->needs_fw_update = true;
         }
-    }
-    // Wireless requires extra handshake packets.
-    if(IS_WIRELESS_DEV(kb)){
-        uchar wireless_pkt[5][MSG_SIZE] = {
-            { CMD_GET, 0xae, 0 },
-            { CMD_GET, 0x4a, 0 },
-            { CMD_GET, 0x50, 0 },
-            { CMD_SET, 0xad, 0x00, 0x00, 100 }, // Opacity packet.
-            { CMD_SET, 0xaa, 0 },               // Create blank colour profiles.
-        };
-        if(!usbrecv(kb, wireless_pkt[0], MSG_SIZE, in_pkt))
-            return -1;
-        memcpy(&vendor, in_pkt + 4, 2);
-        memcpy(&product, in_pkt + 6, 2);
-        memcpy(&version, in_pkt + 8, 2);
-        if(vendor != kb->vendor)
-            ckb_warn("Got wireless vendor ID %04x (expected %04x)\n", vendor, kb->vendor);
-        if(product != kb->product)
-            ckb_warn("Got wireless product ID %04x (expected %04x)\n", product, kb->product);
-        // More handshake packets.
-        for(int i = 1; i < 3; i++)
-            if(!usbrecv(kb, wireless_pkt[i], MSG_SIZE, in_pkt))
+        kb->bldversion = bootloader;
+
+        // Wireless requires extra handshake packets.
+        if(IS_WIRELESS_DEV(kb)){
+            uchar wireless_pkt[5][MSG_SIZE] = {
+                { CMD_GET, 0xae, 0 },
+                { CMD_GET, 0x4a, 0 },
+                { CMD_GET, 0x50, 0 },
+                { CMD_SET, 0xad, 0x00, 0x00, 100 }, // Opacity packet.
+                { CMD_SET, 0xaa, 0 },               // Create blank colour profiles.
+            };
+            if(!usbrecv(kb, wireless_pkt[0], MSG_SIZE, in_pkt))
                 return -1;
-        if(!usbsend(kb, wireless_pkt[3], MSG_SIZE, 1))
-            return -1;
-        // Generate blank colour profiles.
-        for(int profile = 1; profile < 6; profile++) {
-            wireless_pkt[4][5] = 0xff; // Blank profile command.
-            wireless_pkt[4][15] = profile;
-            if(!usbsend(kb, wireless_pkt[4], MSG_SIZE, 1))
+            memcpy(&vendor, in_pkt + 4, 2);
+            memcpy(&product, in_pkt + 6, 2);
+            memcpy(&version, in_pkt + 8, 2);
+            if(vendor != kb->vendor)
+                ckb_warn("Got wireless vendor ID %04x (expected %04x)\n", vendor, kb->vendor);
+            if(product != kb->product)
+                ckb_warn("Got wireless product ID %04x (expected %04x)\n", product, kb->product);
+            // More handshake packets.
+            for(int i = 1; i < 3; i++)
+                if(!usbrecv(kb, wireless_pkt[i], MSG_SIZE, in_pkt))
+                    return -1;
+            if(!usbsend(kb, wireless_pkt[3], MSG_SIZE, 1))
                 return -1;
+            // Generate blank colour profiles.
+            for(int profile = 1; profile < 6; profile++) {
+                wireless_pkt[4][5] = 0xff; // Blank profile command.
+                wireless_pkt[4][15] = profile;
+                if(!usbsend(kb, wireless_pkt[4], MSG_SIZE, 1))
+                    return -1;
+            }
+            /// FIXME: REMOVE THIS WHEN HARDWARE PROFILES AND WIRELESS FW UPDATE ARE ADDED
+            kb->features &= ~(FEAT_HWLOAD | FEAT_FWUPDATE);
         }
-        /// !!! REMOVE THIS WHEN HARDWARE PROFILES AND WIRELESS FW UPDATE ARE ADDED
-        kb->features &= ~(FEAT_HWLOAD | FEAT_FWUPDATE);
+    } else if (in_pkt[1] == 0) {
+        // This happens when we're in bootloader mode, but not on all devices
+        ckb_warn("Device responded with 0e00 to 0e01 request");
+        kb->bldversion = kb->fwversion;
+        kb->needs_fw_update = true;
     }
 
     return 0;
 }
 
 #define FW_MAXSIZE  (255 * 256)
+#define FWUPDATE_RET(r) { kb->usbdelay_ns = delay; free(fwdata); return r; }
 
 // Updates the device's firmware with the specified file. Returns one of the FW_ constants.
 // Lock the keyboard's main mutex before calling this and unlock it when done.
 int fwupdate(usbdevice* kb, const char* path, int nnumber){
+    // Force the device to 10ms delay (we need to deliver packets very slowly to make sure it doesn't get overwhelmed)
+    long delay = kb->usbdelay_ns;
+    kb->usbdelay_ns = 10000000L;
+
     // Read the firmware from the given path
     char* fwdata = calloc(1, FW_MAXSIZE + 256);
     int fd = open(path, O_RDONLY);
     if(fd == -1){
         ckb_err("Failed to open firmware file %s: %s", path, strerror(errno));
-        free(fwdata);
-        return FW_NOFILE;
+        FWUPDATE_RET(FW_NOFILE);
     }
     ssize_t length = read(fd, fwdata, FW_MAXSIZE + 1);
     if(length <= 0x108 || length > FW_MAXSIZE){
         ckb_err("Failed to read firmware file %s: %s", path, length <= 0 ? strerror(errno) : "Wrong size");
         close(fd);
-        free(fwdata);
-        return FW_NOFILE;
+        FWUPDATE_RET(FW_NOFILE);
     }
     close(fd);
 
@@ -137,13 +167,11 @@ int fwupdate(usbdevice* kb, const char* path, int nnumber){
     // Check against the actual device
     if(vendor != kb->vendor || product != kb->product){
         ckb_err("Firmware file %s doesn't match device (V: %04x P: %04x)", path, vendor, product);
-        free(fwdata);
-        return FW_WRONGDEV;
+        FWUPDATE_RET(FW_WRONGDEV);
     }
     ckb_info("Loading firmware version %04x from %s", version, path);
     nprintf(kb, nnumber, 0, "fwupdate %s 0/%d\n", path, (int)length);
-    // Force the device to 10ms delay (we need to deliver packets very slowly to make sure it doesn't get overwhelmed)
-    kb->usbdelay = 10;
+
     // Send the firmware messages (256 bytes at a time)
     uchar data_pkt[7][MSG_SIZE] = {
         { CMD_SET, FIELD_FW_START, 0xf0, 0x01, 0 },
@@ -178,15 +206,13 @@ int fwupdate(usbdevice* kb, const char* path, int nnumber){
         if(index == 1){
             if(!usbsend(kb, data_pkt[0], MSG_SIZE, 1)){
                 ckb_err("Firmware update failed");
-                free(fwdata);
-                return FW_USBFAIL;
+                FWUPDATE_RET(FW_USBFAIL);
             }
             // The above packet can take a lot longer to process, so wait for a while
-            sleep(3);
+            clock_nanosleep(CLOCK_MONOTONIC, 0, &(struct timespec) {.tv_sec = 3}, NULL);
             if(!usbsend(kb, data_pkt[2], MSG_SIZE, npackets - 1)){
                 ckb_err("Firmware update failed");
-                free(fwdata);
-                return FW_USBFAIL;
+                FWUPDATE_RET(FW_USBFAIL);
             }
         } else {
             // If the output ends here, set the length byte appropriately
@@ -194,8 +220,7 @@ int fwupdate(usbdevice* kb, const char* path, int nnumber){
                 data_pkt[npackets][2] = length - last;
             if(!usbsend(kb, data_pkt[1], MSG_SIZE, npackets)){
                 ckb_err("Firmware update failed");
-                free(fwdata);
-                return FW_USBFAIL;
+                FWUPDATE_RET(FW_USBFAIL);
             }
         }
         nprintf(kb, nnumber, 0, "fwupdate %s %d/%d\n", path, output, (int)length);
@@ -207,15 +232,13 @@ int fwupdate(usbdevice* kb, const char* path, int nnumber){
     };
     if(!usbsend(kb, data_pkt2[0], MSG_SIZE, 2)){
         ckb_err("Firmware update failed");
-        free(fwdata);
-        return FW_USBFAIL;
+        FWUPDATE_RET(FW_USBFAIL);
     }
     // Updated successfully
     kb->fwversion = version;
     mkfwnode(kb);
     ckb_info("Firmware update complete");
-    free(fwdata);
-    return FW_OK;
+    FWUPDATE_RET(FW_OK);
 }
 
 int cmd_fwupdate(usbdevice* kb, usbmode* dummy1, int nnumber, int dummy2, const char* path){

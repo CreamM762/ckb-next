@@ -16,7 +16,7 @@ class CkbSystemTrayIcon : public QSystemTrayIcon {
 public:
 #ifdef USE_DBUS_MENU
     void setIcon(QIcon icon, QString name);
-    CkbSystemTrayIcon(const QIcon& icon, const QString iconName, QObject* parent = 0);
+    CkbSystemTrayIcon(const QIcon& icon, const QString iconName, QObject* parent = nullptr);
     inline void show() { setStatus(KStatusNotifierItem::Active); }
     inline void hide() { setStatus(KStatusNotifierItem::Passive); }
     inline void setVisible(bool visible) { setStatus((visible ? KStatusNotifierItem::Active : KStatusNotifierItem::Passive)); }
@@ -27,7 +27,11 @@ signals:
 private:
     QString previousPath;
 #else
-    CkbSystemTrayIcon(const QIcon& icon, const QString iconName, QObject* parent = 0) :  QSystemTrayIcon(icon, parent) {}
+    // setToolTip implementations for feature parity
+    // They discard the icon
+    void setToolTip(const QString& iconName, const QString& title, const QString& subTitle) { QSystemTrayIcon::setToolTip(QString("%1: %2").arg(title, subTitle)); }
+    void setToolTip(const QIcon& icon, const QString& title, const QString& subTitle) { QSystemTrayIcon::setToolTip(QString("%1: %2").arg(title, subTitle)); }
+    CkbSystemTrayIcon(const QIcon& icon, const QString iconName, QObject* parent = nullptr) :  QSystemTrayIcon(icon, parent) {}
     virtual bool event(QEvent* evt)
     {
         if(evt->type() == QEvent::Wheel) {

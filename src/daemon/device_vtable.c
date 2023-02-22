@@ -52,7 +52,11 @@ static int int1_int_none(usbdevice* kb, int dummy){
 static void int0_void_none(usbdevice* kb){
     (void)kb;
 }
-
+static int cmd_pollrate_none(usbdevice* kb, pollrate_t poll){
+    (void)kb;
+    (void)poll;
+    return 0;
+}
 #if 0
 static int cmd_io_stub(usbdevice* kb, void* ptr, int len, int is_recv, const char* file, int line){
     ckb_fatal_fn("This should never be called", file, line);
@@ -111,6 +115,8 @@ const devcmd vtable_keyboard = {
     .write = nxp_usb_write,
     .read = nxp_usb_read,
     .get_battery_info = int0_void_none,
+    .delay = nxp_delay,
+    .setfps = nxp_kb_setfps,
 };
 
 const devcmd vtable_keyboard_wireless = {
@@ -162,6 +168,8 @@ const devcmd vtable_keyboard_wireless = {
     .write = nxp_usb_write,
     .read = nxp_usb_read,
     .get_battery_info = nxp_get_battery_info,
+    .delay = nxp_delay,
+    .setfps = nxp_kb_setfps,
 };
 
 // Legacy keyboard vtable (K70)
@@ -169,7 +177,7 @@ const devcmd vtable_keyboard_legacy = {
     .hwload = cmd_io_none,
     .hwsave = cmd_io_none,
     .fwupdate = cmd_io_none,
-    .pollrate = cmd_io_none,
+    .pollrate = cmd_pollrate_none,
 
     .active = cmd_io_none,
     .idle = cmd_io_none,
@@ -214,6 +222,8 @@ const devcmd vtable_keyboard_legacy = {
     .write = legacy_dev_io,
     .read = legacy_dev_io,
     .get_battery_info = int0_void_none,
+    .delay = legacy_delay,
+    .setfps = int1_void_none, // Legacy devices have a fixed delay
 };
 
 // RGB mouse vtable
@@ -266,6 +276,8 @@ const devcmd vtable_mouse = {
     .write = nxp_usb_write,
     .read = nxp_usb_read,
     .get_battery_info = int0_void_none,
+    .delay = nxp_delay,
+    .setfps = nxp_mouse_setfps,
 };
 
 const devcmd vtable_mouse_wireless = {
@@ -317,6 +329,8 @@ const devcmd vtable_mouse_wireless = {
     .write = nxp_usb_write,
     .read = nxp_usb_read,
     .get_battery_info = nxp_get_battery_info,
+    .delay = nxp_delay,
+    .setfps = nxp_mouse_setfps,
 };
 
 // RGB Mousepad vtable
@@ -324,7 +338,7 @@ const devcmd vtable_mousepad = {
     .hwload = cmd_io_none,
     .hwsave = cmd_io_none,
     .fwupdate = cmd_fwupdate,
-    .pollrate = cmd_io_none,
+    .pollrate = cmd_pollrate_none,
 
     .active = cmd_active_mouse,
     .idle = cmd_idle_mouse,
@@ -369,6 +383,8 @@ const devcmd vtable_mousepad = {
     .write = nxp_usb_write,
     .read = nxp_usb_read,
     .get_battery_info = int0_void_none,
+    .delay = nxp_delay,
+    .setfps = nxp_mouse_setfps,
 };
 
 // Legacy mouse vtable
@@ -421,6 +437,8 @@ const devcmd vtable_mouse_legacy = {
     .write = legacy_dev_io,
     .read = legacy_dev_io,
     .get_battery_info = int0_void_none,
+    .delay = legacy_delay,
+    .setfps = int1_void_none, // Legacy devices have a fixed delay
 };
 
 // Bragi vtables
@@ -472,6 +490,8 @@ const devcmd vtable_bragi_mouse = {
     .write = bragi_usb_write,
     .read = bragi_usb_read,
     .get_battery_info = bragi_get_battery_info,
+    .delay = bragi_delay,
+    .setfps = int1_void_none, // Bragi devices respond to everything, so no need for delays
 };
 
 const devcmd vtable_bragi_keyboard = {
@@ -522,13 +542,15 @@ const devcmd vtable_bragi_keyboard = {
     .write = bragi_usb_write,
     .read = bragi_usb_read,
     .get_battery_info = bragi_get_battery_info,
+    .delay = bragi_delay,
+    .setfps = int1_void_none, // Bragi devices respond to everything, so no need for delays
 };
 
 const devcmd vtable_bragi_dongle = {
     .hwload = cmd_io_none,
     .hwsave = cmd_io_none,
     .fwupdate = cmd_io_none,
-    .pollrate = cmd_io_none,
+    .pollrate = cmd_pollrate_none,
 
     .active = cmd_io_none,
     .idle = cmd_io_none,
@@ -572,4 +594,6 @@ const devcmd vtable_bragi_dongle = {
     .write = bragi_usb_write,
     .read = bragi_usb_read,
     .get_battery_info = int0_void_none,
+    .delay = bragi_delay,
+    .setfps = int1_void_none, // Bragi devices respond to everything, so no need for delays
 };
